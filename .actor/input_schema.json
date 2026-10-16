@@ -1,0 +1,84 @@
+{
+    "$schema": "https://apify.com/schemas/v1/input.ide.json",
+    "title": "Website Contact & Company Enricher",
+    "description": "Enrich domains with public business contact details.",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "domains": {
+            "title": "Domains",
+            "type": "array",
+            "editor": "stringList",
+            "description": "Domains or website URLs (an email address also works: its domain is used). One per line; comma/semicolon lists are split.",
+            "prefill": ["apify.com", "stripe.com", "basecamp.com"]
+        },
+        "maxPagesPerDomain": {
+            "title": "Max pages per domain",
+            "type": "integer",
+            "description": "Homepage plus the best contact/about/imprint pages found on it.",
+            "default": 5,
+            "minimum": 1,
+            "maximum": 15
+        },
+        "emailScope": {
+            "title": "Which emails to return",
+            "type": "string",
+            "editor": "select",
+            "description": "role = generic mailboxes only (info@, sales@, support@…), the GDPR-friendly default; business = also named addresses on the company's own domain; all = every address published on the pages.",
+            "enum": ["role", "business", "all"],
+            "enumTitles": ["Role / generic only", "Role + company-domain", "All published"],
+            "default": "role"
+        },
+        "validateEmails": {
+            "title": "Validate emails (MX, disposable, typo)",
+            "type": "boolean",
+            "description": "DNS-over-HTTPS MX lookup plus disposable and typo checks (same logic as Fairquery Email Validator). No SMTP probing.",
+            "default": true
+        },
+        "checkSpfDmarc": {
+            "title": "Report SPF / DMARC",
+            "type": "boolean",
+            "description": "Adds SPF/DMARC presence and DMARC policy for the company's mail domain.",
+            "default": false
+        },
+        "defaultPhoneCountry": {
+            "title": "Default phone country",
+            "type": "string",
+            "editor": "textfield",
+            "description": "ISO code (e.g. US, DE). When set, national-format numbers in page text are parsed too; otherwise only tel: links, JSON-LD and +international numbers are used."
+        },
+        "domainConcurrency": {
+            "title": "Domains in parallel",
+            "type": "integer",
+            "description": "Different sites crawled at once. Pages of one site are always fetched one at a time.",
+            "default": 5,
+            "minimum": 1,
+            "maximum": 20
+        },
+        "requestDelayMs": {
+            "title": "Delay between requests to one site (ms)",
+            "type": "integer",
+            "description": "Politeness delay per site; a larger robots.txt Crawl-delay wins (capped at 10 s).",
+            "default": 1000,
+            "minimum": 250,
+            "maximum": 10000
+        },
+        "requestTimeoutSecs": {
+            "title": "Request timeout (s)",
+            "type": "integer",
+            "description": "Per HTTP request.",
+            "default": 15,
+            "minimum": 5,
+            "maximum": 60
+        },
+        "maxDomains": {
+            "title": "Max domains",
+            "type": "integer",
+            "description": "Safety cap per run.",
+            "default": 1000,
+            "minimum": 1,
+            "maximum": 50000
+        }
+    },
+    "required": ["domains"]
+}

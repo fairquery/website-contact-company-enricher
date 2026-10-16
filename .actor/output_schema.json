@@ -1,0 +1,9 @@
+{
+    "$schema": "https://apify.com/schemas/v1/output.ide.json",
+    "actorOutputSchemaVersion": 1,
+    "title": "Contact enricher output",
+    "properties": {
+        "dataset": { "type": "string", "title": "Results (domain / error rows)", "template": "{{links.apiDefaultDatasetUrl}}/items" },
+        "runSummary": { "type": "string", "title": "Run summary", "template": "{{links.apiDefaultKeyValueStoreUrl}}/records/RUN_SUMMARY" }
+    }
+}
