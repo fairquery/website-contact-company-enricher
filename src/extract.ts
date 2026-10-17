@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import { findPhoneNumbersInText, parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js/max';
+import { type CountryCode, findPhoneNumbersInText, parsePhoneNumberFromString } from 'libphonenumber-js/max';
 
 export interface PageData {
     emails: Map<string, string>; // email -> first source url

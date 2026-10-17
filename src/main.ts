@@ -10,7 +10,8 @@ import {
     verdictOf,
 } from './checks.js';
 import { fetchPage, loadRobots, normalizeDomain, sleep } from './crawl.js';
-import { DohClient, lookupDomain, type DomainDns } from './dns.js';
+import { runWithDeadline } from './deadline.js';
+import { DohClient, type DomainDns, lookupDomain } from './dns.js';
 import { Emitter } from './emitter.js';
 import { emptyPageData, parsePage, pickCompanyName, pickPages } from './extract.js';
 import { SCHEMA_VERSION } from './types.js';
@@ -25,6 +26,7 @@ interface Input {
     domainConcurrency?: number;
     requestDelayMs?: number;
     requestTimeoutSecs?: number;
+    domainTimeoutSecs?: number;
     maxDomains?: number;
 }
 
@@ -32,7 +34,9 @@ const EVENT = 'domain-enriched';
 
 await Actor.init();
 const startedAt = new Date().toISOString();
-const emitter = new Emitter(20);
+// Batch size 1: every finished domain is pushed and charged immediately, so a run that hits its
+// timeout or is aborted never loses completed (billable) work.
+const emitter = new Emitter(1);
 let aborting = false;
 Actor.on('aborting', async () => {
     aborting = true;
@@ -49,6 +53,12 @@ const concurrency = Math.min(Math.max(input.domainConcurrency ?? 5, 1), 20);
 const delayMs = Math.max(input.requestDelayMs ?? 1000, 250);
 const timeoutMs = Math.min(Math.max(input.requestTimeoutSecs ?? 15, 5), 60) * 1000;
 const maxDomains = input.maxDomains ?? 1000;
+// Hard wall-clock budget per domain (all pages, robots.txt and DNS checks together).
+const domainTimeoutMs = Math.min(Math.max(input.domainTimeoutSecs ?? 40, 15), 120) * 1000;
+// Stop starting new domains shortly before the platform run timeout.
+const runDeadline = process.env.ACTOR_TIMEOUT_AT ? Date.parse(process.env.ACTOR_TIMEOUT_AT) : NaN;
+const RUN_SAFETY_MS = domainTimeoutMs + 20_000;
+const nearRunTimeout = () => !Number.isNaN(runDeadline) && Date.now() > runDeadline - RUN_SAFETY_MS;
 
 const counters = {
     domains_enriched: 0,
@@ -58,6 +68,8 @@ const counters = {
     emails_found: 0,
     emails_excluded_by_scope: 0,
     duplicates_skipped: 0,
+    domains_timed_out: 0,
+    domains_skipped_run_timeout: 0,
 };
 const doh = new DohClient();
 const dnsCache = new Map<string, Promise<DomainDns | null>>();
@@ -99,9 +111,10 @@ let next = 0;
 await Promise.all(
     Array.from({ length: Math.min(concurrency, domains.length) }, async () => {
         while (next < domains.length && !aborting && !emitter.limitReached) {
+            if (nearRunTimeout()) break;
             const item = domains[next++];
             try {
-                await enrich(item.input, item.domain);
+                await enrichWithDeadline(item.input, item.domain);
             } catch (e) {
                 await pushError(
                     'ENRICH_FAILED',
@@ -114,6 +127,18 @@ await Promise.all(
         }
     }),
 );
+
+if (next < domains.length && nearRunTimeout() && !aborting) {
+    const left = domains.length - next;
+    counters.domains_skipped_run_timeout = left;
+    await pushError(
+        'RUN_TIMEOUT_NEAR',
+        `Run timeout approaching: ${left} domain(s) were not processed (not charged). Re-run them or raise the run timeout.`,
+        true,
+        null,
+        null,
+    );
+}
 
 await emitter.flush();
 await Actor.setValue('RUN_SUMMARY', {
@@ -132,11 +157,12 @@ await Actor.setValue('RUN_SUMMARY', {
         defaultPhoneCountry: phoneCountry ?? null,
         domainConcurrency: concurrency,
         requestDelayMs: delayMs,
+        domainTimeoutSecs: domainTimeoutMs / 1000,
     },
 });
 await Actor.exit();
 
-function dnsFor(domain: string): Promise<DomainDns | null> {
+async function dnsFor(domain: string): Promise<DomainDns | null> {
     let p = dnsCache.get(domain);
     if (!p) {
         p = lookupDomain(doh, domain, spfDmarc).catch(() => null);
@@ -145,7 +171,42 @@ function dnsFor(domain: string): Promise<DomainDns | null> {
     return p;
 }
 
-async function enrich(rawInput: string, domain: string): Promise<void> {
+/**
+ * Runs enrich() under a hard per-domain wall-clock limit. At the limit the domain's requests are aborted and
+ * the row is built from whatever was collected (charged only if the homepage was fetched). If enrich() still
+ * does not settle shortly after (a non-abortable await), the domain gets an uncharged DOMAIN_TIMEOUT error row
+ * and the worker moves on, so one site can never hang the run.
+ */
+/** First caller wins: exactly one row (data or error) per domain. */
+function claim(state: { done: boolean }): boolean {
+    if (state.done) return false;
+    Object.assign(state, { done: true });
+    return true;
+}
+
+async function enrichWithDeadline(rawInput: string, domain: string): Promise<void> {
+    const state = { done: false, phase: 'start' };
+    const r = await runWithDeadline(async (signal) => enrich(rawInput, domain, signal, state), domainTimeoutMs, 10_000);
+    if (r === 'hard-timeout' && claim(state)) {
+        // a late enrich() can no longer emit a second row
+        counters.domains_timed_out += 1;
+        await pushError(
+            'DOMAIN_TIMEOUT',
+            `Domain did not finish within ${domainTimeoutMs / 1000 + 10} s (stuck at: ${state.phase}); skipped (not charged).`,
+            true,
+            rawInput,
+            domain,
+        );
+    }
+}
+
+async function enrich(
+    rawInput: string,
+    domain: string,
+    signal: AbortSignal,
+    state: { done: boolean; phase: string },
+): Promise<void> {
+    const phase = (p: string) => Object.assign(state, { phase: p });
     const startUrls = [`https://${domain}/`, `https://www.${domain}/`, `http://${domain}/`];
     const data = emptyPageData();
     const crawled = new Set<string>();
@@ -163,8 +224,13 @@ async function enrich(rawInput: string, domain: string): Promise<void> {
     };
 
     for (const start of startUrls) {
-        const origin = new URL(start).origin;
-        const robots = await loadRobots(origin, timeoutMs);
+        if (signal.aborted) {
+            lastErr = lastErr || `Domain time limit (${domainTimeoutMs / 1000} s) reached`;
+            break;
+        }
+        const { origin } = new URL(start);
+        phase(`robots ${origin}`);
+        const robots = await loadRobots(origin, timeoutMs, signal);
         robotsStatus = robots.status;
         if (robots.status === 'network-error') {
             lastErr = `Site unreachable: ${start}`;
@@ -182,7 +248,8 @@ async function enrich(rawInput: string, domain: string): Promise<void> {
         }
         try {
             await polite();
-            const f = await fetchPage(start, timeoutMs);
+            phase(`homepage ${start}`);
+            const f = await fetchPage(start, timeoutMs, signal);
             counters.pages_fetched += 1;
             if (!f.html) {
                 lastErr = `Homepage HTTP ${f.status}`;
@@ -190,11 +257,12 @@ async function enrich(rawInput: string, domain: string): Promise<void> {
             }
             home = new URL(f.url);
             crawled.add(f.url);
+            phase('parse homepage');
             parsePage(f.html, f.url, data, { phoneCountry });
             const finalRobots =
-                new URL(f.url).origin === origin ? robots : await loadRobots(new URL(f.url).origin, timeoutMs);
+                new URL(f.url).origin === origin ? robots : await loadRobots(new URL(f.url).origin, timeoutMs, signal);
             for (const u of pickPages(data.links, home, maxPages - 1)) {
-                if (aborting) break;
+                if (aborting || signal.aborted) break;
                 if (crawled.has(u)) continue;
                 if (!finalRobots.isAllowed(u)) {
                     blocked += 1;
@@ -202,7 +270,9 @@ async function enrich(rawInput: string, domain: string): Promise<void> {
                 }
                 try {
                     await polite();
-                    const p = await fetchPage(u, timeoutMs);
+                    if (signal.aborted) break;
+                    phase(`page ${u}`);
+                    const p = await fetchPage(u, timeoutMs, signal);
                     counters.pages_fetched += 1;
                     if (p.html && !crawled.has(p.url)) {
                         crawled.add(p.url);
@@ -218,12 +288,19 @@ async function enrich(rawInput: string, domain: string): Promise<void> {
         }
     }
     counters.pages_blocked_by_robots += blocked;
+    const timedOut = signal.aborted;
 
     if (!home) {
+        if (!claim(state)) return;
+        if (timedOut) counters.domains_timed_out += 1;
+        let code = blocked ? 'BLOCKED_BY_ROBOTS' : 'SITE_UNREACHABLE';
+        if (timedOut) code = 'DOMAIN_TIMEOUT';
         await pushError(
-            blocked ? 'BLOCKED_BY_ROBOTS' : 'SITE_UNREACHABLE',
-            lastErr || 'Homepage could not be fetched',
-            !blocked,
+            code,
+            timedOut
+                ? `Homepage not fetched within the ${domainTimeoutMs / 1000} s domain time limit`
+                : lastErr || 'Homepage could not be fetched',
+            !blocked || timedOut,
             rawInput,
             domain,
         );
@@ -244,7 +321,8 @@ async function enrich(rawInput: string, domain: string): Promise<void> {
             counters.emails_excluded_by_scope += 1;
             continue;
         }
-        const dns = validate ? await dnsFor(p.domain) : null;
+        phase(`dns ${p.domain}`);
+        const dns = validate && !signal.aborted ? await dnsFor(p.domain) : null;
         const disposable = isDisposable(p.domain);
         const free = isFreeProvider(p.domain);
         const typo = suggestDomain(p.domain);
@@ -281,7 +359,9 @@ async function enrich(rawInput: string, domain: string): Promise<void> {
             Number(b.on_company_domain) - Number(a.on_company_domain) ||
             Number(b.is_role_account) - Number(a.is_role_account),
     );
-    const siteDns = validate ? await dnsFor(siteRoot) : null;
+    phase(`dns ${siteRoot}`);
+    const siteDns = validate && !signal.aborted ? await dnsFor(siteRoot) : null;
+    phase('emit');
     const social: Record<string, string[]> = {};
     for (const [k, v] of data.socials) social[k] = [...v].slice(0, 5);
     const addresses = [...new Set(data.addresses)].slice(0, 5);
@@ -314,7 +394,11 @@ async function enrich(rawInput: string, domain: string): Promise<void> {
         pages_blocked_by_robots: blocked,
         robots_txt: robotsStatus,
         email_scope: scope,
+        // true if the per-domain time limit cut the crawl short; the row holds what was collected until then
+        partial: timedOut,
     };
+    if (!claim(state)) return;
+    if (timedOut) counters.domains_timed_out += 1;
     await emitter.emit(row, EVENT);
     counters.domains_enriched += 1;
 }

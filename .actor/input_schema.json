@@ -10,7 +10,11 @@
             "type": "array",
             "editor": "stringList",
             "description": "Domains or website URLs (an email address also works: its domain is used). One per line; comma/semicolon lists are split.",
-            "prefill": ["apify.com", "stripe.com", "basecamp.com"]
+            "prefill": [
+                "apify.com",
+                "stripe.com",
+                "basecamp.com"
+            ]
         },
         "maxPagesPerDomain": {
             "title": "Max pages per domain",
@@ -25,8 +29,16 @@
             "type": "string",
             "editor": "select",
             "description": "role = generic mailboxes only (info@, sales@, support@…), the GDPR-friendly default; business = also named addresses on the company's own domain; all = every address published on the pages.",
-            "enum": ["role", "business", "all"],
-            "enumTitles": ["Role / generic only", "Role + company-domain", "All published"],
+            "enum": [
+                "role",
+                "business",
+                "all"
+            ],
+            "enumTitles": [
+                "Role / generic only",
+                "Role + company-domain",
+                "All published"
+            ],
             "default": "role"
         },
         "validateEmails": {
@@ -71,6 +83,14 @@
             "minimum": 5,
             "maximum": 60
         },
+        "domainTimeoutSecs": {
+            "title": "Time limit per domain (s)",
+            "type": "integer",
+            "description": "Hard wall-clock limit for one domain (robots.txt, all pages and DNS checks together). When it is reached, the row is returned with what was collected so far (partial: true); if not even the homepage loaded, you get an uncharged DOMAIN_TIMEOUT error row. One slow site can never hang the run.",
+            "default": 40,
+            "minimum": 15,
+            "maximum": 120
+        },
         "maxDomains": {
             "title": "Max domains",
             "type": "integer",
@@ -80,5 +100,7 @@
             "maximum": 50000
         }
     },
-    "required": ["domains"]
+    "required": [
+        "domains"
+    ]
 }

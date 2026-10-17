@@ -1,3 +1,4 @@
+import { Deadline } from './crawl.js';
 import { DOH_URL } from './types.js';
 
 export class DnsError extends Error {
@@ -33,16 +34,27 @@ export class DohClient {
     async query(name: string, type: keyof typeof TYPE, attempt = 0): Promise<{ status: number; answers: DohAnswer[] }> {
         this.requestCount += 1;
         try {
-            const res = await this.fetchImpl(dohUrl(name, type), {
-                headers: { accept: 'application/dns-json' },
-                signal: AbortSignal.timeout(10_000),
-            });
+            const dl = new Deadline(10_000);
+            let res: Response;
+            let j: DohResponse | null = null;
+            try {
+                res = await dl.race(
+                    this.fetchImpl(dohUrl(name, type), {
+                        headers: { accept: 'application/dns-json' },
+                        signal: dl.signal,
+                    }),
+                );
+                if (res.ok) j = (await dl.race(res.json())) as DohResponse;
+                else res.body?.cancel().catch(() => undefined);
+            } finally {
+                dl.dispose();
+            }
             if (!res.ok) {
                 const retryable = res.status === 429 || res.status >= 500;
                 if (retryable && attempt < 3) return this.retry(name, type, attempt);
                 throw new DnsError(`DoH ${type} ${name} -> HTTP ${res.status}`, retryable);
             }
-            const j = (await res.json()) as DohResponse;
+            if (!j) throw new DnsError(`DoH ${type} ${name}: empty response`, true);
             if (j.Status === 2 && attempt < 2) return this.retry(name, type, attempt); // SERVFAIL
             return { status: j.Status, answers: (j.Answer ?? []).filter((a) => a.type === TYPE[type]) };
         } catch (e) {

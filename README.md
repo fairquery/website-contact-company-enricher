@@ -36,6 +36,7 @@ Do **not** use it to find personal emails of individuals or to scrape people's p
 | `domainConcurrency` | int | `5` | Sites in parallel |
 | `requestDelayMs` | int | `1000` | Delay between requests to one site |
 | `requestTimeoutSecs` | int | `15` | Per request |
+| `domainTimeoutSecs` | int | `40` | Hard limit per domain (all pages + DNS). At the limit you get the data collected so far (`partial: true`), or an uncharged `DOMAIN_TIMEOUT` error row if the homepage never loaded |
 | `maxDomains` | int | `1000` | Safety cap |
 
 ```json
@@ -62,7 +63,7 @@ Do **not** use it to find personal emails of individuals or to scrape people's p
 }
 ```
 
-Error rows (`type: "error"`, never charged): `INPUT_EMPTY`, `INVALID_DOMAIN`, `MAX_DOMAINS_EXCEEDED`, `SITE_UNREACHABLE`, `BLOCKED_BY_ROBOTS`, `ENRICH_FAILED`.
+Error rows (`type: "error"`, never charged): `INPUT_EMPTY`, `INVALID_DOMAIN`, `MAX_DOMAINS_EXCEEDED`, `SITE_UNREACHABLE`, `BLOCKED_BY_ROBOTS`, `ENRICH_FAILED`, `DOMAIN_TIMEOUT`, `RUN_TIMEOUT_NEAR`.
 
 **`RUN_SUMMARY`** (key-value store): pages fetched, pages blocked by robots.txt, emails found vs. excluded by scope, DNS requests, charged events.
 
@@ -81,7 +82,7 @@ To cap spend, set a maximum cost per run in the run options; the Actor stops cle
 
 ## Memory / runtime
 
-Default **256 MB**, no browser, no proxy. With the default politeness settings a domain takes about 3–8 s (homepage + 4 pages, 1 s apart), and 5 domains run in parallel, so 100 domains finish in roughly 1–3 minutes. Sites that block datacenter IPs or need JavaScript to render contact details will return fewer fields.
+Default **256 MB**, no browser, no proxy. With the default politeness settings a domain takes about 3–8 s (homepage + 4 pages, 1 s apart), and 5 domains run in parallel, so 100 domains finish in roughly 1–3 minutes. Sites that block datacenter IPs or need JavaScript to render contact details will return fewer fields. Memory is capped at 512 MB (more does not help: the Actor is network-bound). Each domain has a hard 40 s time limit (`domainTimeoutSecs`), so one slow or tarpitting site can't hang the run, and every finished domain is saved and charged immediately. The default run timeout is 15 minutes (about 500–1,000 domains); shortly before the timeout the Actor stops starting new domains and adds an uncharged `RUN_TIMEOUT_NEAR` row listing how many were skipped, so split very large lists or raise the timeout.
 
 ## MCP / Apify tools
 
