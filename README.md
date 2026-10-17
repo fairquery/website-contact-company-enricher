@@ -1,5 +1,7 @@
 # Website Contact & Company Enricher
 
+**Turns company domains into one row each (public business emails, phones, social profiles, company name and address) for $4 per 1,000 domains.** You pay $0.004 per domain that returns a result row, and unreachable, blocked or invalid domains are free. Example: enriching 500 domains costs at most 500 × $0.004 = **$2.00**, plus Apify's $0.00005 Actor-start fee.
+
 **Fairquery** Apify Actor that turns a list of **domains** into one clean row per company: **business emails** (validated for MX, disposable domains and typos), **phone numbers** (E.164), **social profiles**, **company name**, **description** and **postal address**, taken from the homepage and its contact / about / imprint pages. Plain HTTP, no browser, **robots.txt respected**, one request at a time per site.
 
 ## When to use this Actor (LLM / tool selection)
@@ -66,7 +68,16 @@ Error rows (`type: "error"`, never charged): `INPUT_EMPTY`, `INVALID_DOMAIN`, `M
 
 ## Pricing
 
-Pay per event: **`domain-enriched`**, once per domain that returns a result row. Unreachable, blocked or invalid domains are free. See the pricing tab.
+| Event | Price | When |
+| --- | --- | --- |
+| `domain-enriched` | $0.004 | Each domain that returns a result row |
+| `apify-actor-start` | $0.00005 | Once per run, per GB of memory (Apify default event) |
+
+Error rows (`SITE_UNREACHABLE`, `BLOCKED_BY_ROBOTS`, `INVALID_DOMAIN`, `ENRICH_FAILED`, …) are **never charged**. A domain is charged once, however many pages are crawled (up to `maxPagesPerDomain`).
+
+**Worked example:** 1,000 domains from a Google Maps export, of which 120 are unreachable or blocked: 880 × $0.004 = **$3.52**, plus $0.00005.
+
+To cap spend, set a maximum cost per run in the run options; the Actor stops cleanly at the limit. `maxDomains` caps how many domains one run processes. Prices are from the Store pricing tab (October 2026).
 
 ## Memory / runtime
 
@@ -101,13 +112,61 @@ APIFY_TOKEN=... node scripts/smoke-test.mjs --call   # real call
 
 Docker: the root `Dockerfile` builds the MCP server image (`docker build -t fairquery-contact-enricher-mcp .`); it is also the Dockerfile for Glama. The Actor image is `.actor/Dockerfile`. `glama.json` lists `fairquery` as maintainer.
 
-## Local development
+## Works well after
 
-```bash
-npm install
-npx apify run      # input from storage/key_value_stores/default/INPUT.json
-npm test
-```
+- [Google Maps Scraper](https://apify.com/compass/crawler-google-places): pass the `website` column into `domains` to add a generic inbox, phone, LinkedIn page and legal name to each business.
+- [Google Search Results Scraper](https://apify.com/apify/google-search-scraper) or any company list: domains, URLs and email addresses are all accepted and normalised.
+- Next steps: re-check the emails with the [Email Validator](https://apify.com/fairquery/email-validator-mx-disposable) just before sending, and screen company names with the [Sanctions & Watchlist Screener](https://apify.com/fairquery/sanctions-watchlist-screener) when you onboard suppliers or customers.
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+| --- | --- |
+| Run is rejected because `domains` is required | The input had no domains. The three sample domains in the Console form are prefill only and are not sent with API calls. |
+| `BLOCKED_BY_ROBOTS` or few pages crawled | The site's robots.txt disallows `FairqueryBot` for those paths, and the Actor honours it. These rows are free. |
+| `SITE_UNREACHABLE` / no emails on a JavaScript-heavy site | The site blocks datacenter IPs or renders contact details with JavaScript. The Actor uses plain HTTP with no proxy or browser, so such sites return fewer fields. |
+| Named people's emails missing | By default `emailScope` is `role` (info@, sales@ …). Use `business` to include named addresses on the company's own domain, but only if you have a lawful basis to process them. |
+| Run slower than expected | Politeness settings: `requestDelayMs` (default 1,000 ms between requests to one site) and `domainConcurrency` (default 5). Raise concurrency rather than lowering the delay. |
+
+## FAQ
+
+**Where does the data come from?**
+
+Only from pages the company publishes on its own domain: homepage, contact, about, imprint and team pages, plus JSON-LD structured data. No third-party databases.
+
+**Does it return personal emails or LinkedIn profiles of people?**
+
+By default it returns role and generic mailboxes only, and personal LinkedIn profiles (`/in/…`) are never returned.
+
+**Are emails verified?**
+
+They are checked for syntax, MX/null-MX, disposable domains and typos (the same code as the Fairquery Email Validator). There is no SMTP probing, so a mailbox is never confirmed.
+
+**How much does it cost?**
+
+$0.004 per enriched domain ($4 per 1,000), plus a $0.00005 start fee. Unreachable, blocked and invalid domains are free.
+
+**How do I limit spend?**
+
+Set a maximum cost per run in the run options and/or lower `maxDomains`.
+
+**Is this GDPR-compliant?**
+
+The Actor only reads what businesses publish, but business contact data can still be personal data. You need a lawful basis, must honour opt-outs and must follow anti-spam law. See the disclaimer.
+
+## Fairquery family
+
+Other Fairquery tools on the Apify Store. Each one returns structured rows with machine-readable error codes, and error rows are never charged:
+
+- [Email Validator for Agents (MX, Disposable, Typo)](https://apify.com/fairquery/email-validator-mx-disposable): syntax, MX, disposable, role and typo checks without sending mail; $2 per 1,000 emails
+- [Website Tech, SEO & llms.txt Check for Agents](https://apify.com/fairquery/website-tech-seo-ai-readiness): tech stack, SEO score, AI-crawler rules and llms.txt per site; $2 per 1,000 sites
+- [Sanctions & Watchlist Screener (OFAC, EU, UK, UN)](https://apify.com/fairquery/sanctions-watchlist-screener): fuzzy name screening against official sanctions lists; $5 per 1,000 names
+- [LLM Data Guard: PII & Secret Redactor](https://apify.com/fairquery/llm-data-guard-pii-secrets): redact PII and secrets before text reaches an LLM; $3 per 1,000 documents + $0.50 per 1,000 findings
+- [Dependency Vulnerability Check for Agents](https://apify.com/fairquery/osv-dependency-vulnerability-check): packages and lockfiles against OSV.dev; $0.90 per 1,000 packages + $2.80 per 1,000 vulnerabilities
+- [EDGAR Company Facts & Filings for Agents](https://apify.com/fairquery/edgar-company-facts-filings): SEC filings and XBRL facts by ticker, CIK or name; from $2 per 1,000 companies
+- **MCP server** [`@fairquery/agent-trust-mcp`](https://www.npmjs.com/package/@fairquery/agent-trust-mcp): one MCP server for Claude Desktop, Cursor and VS Code (`npx -y @fairquery/agent-trust-mcp`). It has 7 free tools that need no token, plus paid tools that call the PII, email, sanctions and OSV Actors with your own Apify token.
+
+All Fairquery Actors: https://apify.com/fairquery
 
 ## Kits & templates
 
@@ -124,4 +183,11 @@ Returns only information that companies publish on their own websites. You are r
 
 ## Links
 
+- Apify Store: https://apify.com/fairquery/website-contact-company-enricher
+- GitHub: https://github.com/fairquery/website-contact-company-enricher
+- Contact: fairquery@proton.me
 - License: MIT
+
+## Development
+
+Local development, tests and deployment notes are in [DEVELOPMENT.md](./DEVELOPMENT.md). The Apify Store README is [`.actor/README.md`](./.actor/README.md).
