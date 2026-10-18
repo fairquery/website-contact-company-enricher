@@ -94,12 +94,13 @@ Call from agents via [Apify MCP](https://mcp.apify.com) with Actor `fairquery/we
 
 ## Local stdio MCP server
 
-The [`mcp/`](./mcp) folder is a stdio MCP server (TypeScript, `@modelcontextprotocol/sdk`) with two tools, both with annotations and output schemas:
+The [`mcp/`](./mcp) folder is a stdio MCP server (TypeScript, `@modelcontextprotocol/sdk`) with three tools, all with annotations and output schemas:
 
 | Tool | What it does | Cost |
 | --- | --- | --- |
-| `enrich_domains` | Runs this Actor and returns the rows | Needs `APIFY_TOKEN`, billed per domain |
-| `normalize_domains` | Cleans URLs/emails into unique domains, lists invalid ones | Free, local, no token |
+| `enrich_domains` | Runs this Actor and returns the rows. With `waitForFinish: false` it starts the run and returns the run ID at once (for large batches) | Needs `APIFY_TOKEN`, billed per domain (same price either way) |
+| `get_enrichment_results` | Status and paged rows of a run started with `waitForFinish: false`, including partial rows while it runs | Free, needs `APIFY_TOKEN` (reads your own run) |
+| `normalize_domains` | Cleans URLs/emails into unique domains, lists invalid ones, and shows `billable_count` and `estimated_max_cost_usd` (an upper bound) before you run | Free, local, no token |
 
 ```bash
 cd mcp && npm install && npm run build
@@ -168,7 +169,7 @@ Other Fairquery tools on the Apify Store. Each one returns structured rows with 
 - [Company Jobs Feed: Greenhouse, Lever & Ashby](https://apify.com/fairquery/company-jobs-feed): live jobs from employers' own ATS boards with age and repost signals; $0.99 per 1,000 jobs + $0.0005 per board
 - [Competitor Change Tracker: Pricing, Terms, Careers & Changelog](https://apify.com/fairquery/competitor-change-tracker): watch competitors' public pricing, terms, careers and changelog pages for real changes with plain-English summaries and webhook alerts; $0.00049 per page checked + $0.0049 per change
 - [AI Exposure Scanner: Public Secrets, Files & AI-Crawler Policy](https://apify.com/fairquery/ai-exposure-scanner): passive, scored scan of your own domains and public GitHub repos for leaked secrets (masked), exposed files, AI-crawler policy, security headers and SPF/DMARC; $0.039 per domain + $0.0039 per repo + $0.0019 per finding
-- **MCP server** [`@fairquery/agent-trust-mcp`](https://www.npmjs.com/package/@fairquery/agent-trust-mcp): one MCP server for Claude Desktop, Cursor and VS Code (`npx -y @fairquery/agent-trust-mcp`). It has 7 free tools that need no token, plus paid tools that call the PII, email, sanctions and OSV Actors with your own Apify token.
+- **MCP server** [`@fairquery/agent-trust-mcp`](https://www.npmjs.com/package/@fairquery/agent-trust-mcp): one MCP server for Claude Desktop, Cursor and VS Code (`npx -y @fairquery/agent-trust-mcp`). It has 8 free tools that need no token, plus paid tools that call the PII, email, sanctions and OSV Actors with your own Apify token.
 
 All Fairquery Actors: https://apify.com/fairquery
 

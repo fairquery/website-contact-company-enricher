@@ -1,6 +1,6 @@
 # Changelog (MCP server)
 
-## 1.1.0 - unreleased (preview)
+## 1.1.0 - 2026-10-18
 - enrich_domains: new optional `waitForFinish` (default true). false starts the Actor run and returns at once with `run` (run_id, status, dataset_id, console_url); same price.
 - New free tool `get_enrichment_results`: status and paged rows of such a run (GET-only Apify API reads; rejects runs of other Actors with RUN_NOT_FOR_THIS_ACTOR; total never lower than the rows read, since dataset counters lag right after a run).
 - normalize_domains: new output fields `billable_count` (max 1000 per run) and `estimated_max_cost_usd` (billable_count x $0.003 + $0.00005 start fee).
