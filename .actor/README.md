@@ -160,6 +160,13 @@ Optional guides from Fairquery for wiring this Actor into agents and automations
 - [Agent Prompt Pack for Research & Lead Ops](https://fairquery.gumroad.com/l/djdilu): 69 prompts for company research, lead cleaning, SEO and security reviews.
 - [Agent Starter Kit: 10 copy-paste MCP + n8n recipes](https://fairquery.gumroad.com/l/idvrck) ($5): 10 copy-paste MCP + n8n recipes, with ready-made Claude/Cursor configs and 3 starter workflows.
 
+## Data handling, security and support
+
+- **Data retention:** Each run keeps only its own storages in your Apify account (`INPUT`, the results dataset and a counts-only `RUN_SUMMARY`), under your Apify plan's retention. It fetches public pages of the domains you give and looks up MX records through Cloudflare DNS-over-HTTPS. You can delete run storages and named stores at any time in Apify Console or through the API. Fairquery's code sends nothing to Fairquery. Details per tool: https://getfairquery.com/security/
+- **Security reports:** email fairquery@proton.me or use private vulnerability reporting on the GitHub repository (process and response targets: https://getfairquery.com/security/#report).
+- **Support:** the Issues tab on this page, a GitHub issue, or fairquery@proton.me. We aim to reply within 3 business days (a target, not an SLA).
+- **Changes and procurement:** release notes are in the GitHub repository's releases and changelog. Limits, versioning, third parties and other procurement answers: https://getfairquery.com/trust/
+
 ## Disclaimer
 
 Returns only information that companies publish on their own websites. You are responsible for how you use it: business contact data can still be personal data under GDPR/UK GDPR, so have a lawful basis, honour opt-outs, and follow anti-spam law (CAN-SPAM, ePrivacy/PECR) when you contact anyone. DNS checks cannot prove a mailbox exists.
