@@ -23,7 +23,7 @@
         "tsx": "^4.20.3",
         "typescript": "^5.8.0",
         "typescript-eslint": "^8.58.0",
-        "vitest": "^3.0.0"
+        "vitest": "^4.1.12"
     },
     "scripts": {
         "start": "npm run start:dev",
@@ -34,5 +34,8 @@
         "test": "vitest run"
     },
     "author": "Fairquery",
-    "license": "MIT"
+    "license": "MIT",
+    "overrides": {
+        "basic-ftp": "^6.2.3"
+    }
 }
