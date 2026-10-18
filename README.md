@@ -190,7 +190,7 @@ Returns only information that companies publish on their own websites. You are r
 
 - Apify Store: https://apify.com/fairquery/website-contact-company-enricher
 - GitHub: https://github.com/fairquery/website-contact-company-enricher
-- Contact: fairquery@proton.me
+- Contact: info@getfairquery.com
 - License: MIT
 
 ## Development

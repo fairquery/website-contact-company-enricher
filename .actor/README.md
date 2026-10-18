@@ -163,8 +163,8 @@ Optional guides from Fairquery for wiring this Actor into agents and automations
 ## Data handling, security and support
 
 - **Data retention:** Each run keeps only its own storages in your Apify account (`INPUT`, the results dataset and a counts-only `RUN_SUMMARY`), under your Apify plan's retention. It fetches public pages of the domains you give and looks up MX records through Cloudflare DNS-over-HTTPS. You can delete run storages and named stores at any time in Apify Console or through the API. Fairquery's code sends nothing to Fairquery. Details per tool: https://getfairquery.com/security/
-- **Security reports:** email fairquery@proton.me or use private vulnerability reporting on the GitHub repository (process and response targets: https://getfairquery.com/security/#report).
-- **Support:** the Issues tab on this page, a GitHub issue, or fairquery@proton.me. We aim to reply within 3 business days (a target, not an SLA).
+- **Security reports:** email info@getfairquery.com or use private vulnerability reporting on the GitHub repository (process and response targets: https://getfairquery.com/security/#report).
+- **Support:** the Issues tab on this page, a GitHub issue, or info@getfairquery.com. We aim to reply within 3 business days (a target, not an SLA).
 - **Changes and procurement:** release notes are in the GitHub repository's releases and changelog. Limits, versioning, third parties and other procurement answers: https://getfairquery.com/trust/
 
 ## Disclaimer
@@ -176,5 +176,5 @@ Returns only information that companies publish on their own websites. You are r
 - Guide: [How to find a company's contact email, phone and social profiles from its domain](https://getfairquery.com/posts/find-company-contact-email-phone-socials-from-domain/)
 - Apify Store: https://apify.com/fairquery/website-contact-company-enricher
 - GitHub: https://github.com/fairquery/website-contact-company-enricher
-- Contact: fairquery@proton.me
+- Contact: info@getfairquery.com
 - License: MIT

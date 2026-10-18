@@ -11,7 +11,7 @@
 
 Please **do not open a public issue** for security problems.
 
-- Email **fairquery@proton.me** with a description, the affected version, reproduction steps and the impact. Or
+- Email **info@getfairquery.com** with a description, the affected version, reproduction steps and the impact. Or
 - Use **Report a vulnerability** on this repository's **Security** tab (GitHub private vulnerability reporting).
 
 Response targets:
