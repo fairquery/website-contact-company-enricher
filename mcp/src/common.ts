@@ -74,7 +74,7 @@ export async function callActorTool(actorId: string, args: Record<string, unknow
 export const READ_ONLY_REMOTE = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
 export const READ_ONLY_LOCAL = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 
-async function apifyJson(url: string, token: string, init: RequestInit = {}): Promise<{ status: number; body: any }> {
+async function apifyJson(url: string, token: string, init: RequestInit = {}): Promise<{ status: number; body: any; headers: Headers }> {
     const res = await fetch(url, {
         ...init,
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json' } : {}) },
@@ -87,7 +87,7 @@ async function apifyJson(url: string, token: string, init: RequestInit = {}): Pr
     } catch {
         /* keep raw text */
     }
-    return { status: res.status, body };
+    return { status: res.status, body, headers: res.headers };
 }
 
 export type RunInfo = {
@@ -145,7 +145,9 @@ export async function readRun(actorId: string, runId: string, token: string, off
     if (!info.dataset_id) return { info, items: [] as unknown[], total: 0 };
     const ds = await apifyJson(`${APIFY_BASE}/datasets/${info.dataset_id}/items?clean=true&offset=${offset}&limit=${limit}`, token);
     if (ds.status !== 200) throw new RunLookupError('APIFY_DATASET_READ_FAILED', `GET dataset items -> HTTP ${ds.status}`, true);
-    const meta = await apifyJson(`${APIFY_BASE}/datasets/${info.dataset_id}`, token);
-    const total = Number(meta.body?.data?.cleanItemCount ?? meta.body?.data?.itemCount ?? 0);
-    return { info, items: Array.isArray(ds.body) ? ds.body : [], total };
+    const items: unknown[] = Array.isArray(ds.body) ? ds.body : [];
+    // Dataset counters are eventually consistent right after a run ends, so never report fewer rows than were read.
+    const headerTotal = Number(ds.headers.get('x-apify-pagination-total') ?? 0);
+    const total = Math.max(Number.isFinite(headerTotal) ? headerTotal : 0, offset + items.length);
+    return { info, items, total };
 }

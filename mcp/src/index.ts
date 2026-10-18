@@ -108,7 +108,7 @@ server.registerTool(
             'BEHAVIOR: GET requests to the Apify API only (actor, run, dataset); never starts, aborts or re-bills a run. Typically <1 s. Poll every 10-30 s; a run works on 5 domains at a time, ~2-10 s each.',
             'COST: free; needs the APIFY_TOKEN that started the run. Reading charges no Actor event (the run was billed per enriched domain when it ran).',
             'RETURNS: run (run_id, status, finished) plus one page of the same rows enrich_domains returns; Errors: APIFY_TOKEN_MISSING, RUN_NOT_FOUND, RUN_NOT_FOR_THIS_ACTOR, APIFY_TOKEN_INVALID, APIFY_RUN_LOOKUP_FAILED / APIFY_DATASET_READ_FAILED (retryable).',
-            'PARAMETERS: runId is run.run_id from enrich_domains (also shown in the Apify console URL). status is READY | RUNNING | SUCCEEDED | FAILED | ABORTED | TIMED-OUT; finished=true for the last four, after which total no longer changes. A FAILED or TIMED-OUT run still returns the rows it wrote. offset/limit page the rows in write order; total counts all rows written so far, so keep calling with nextOffset until it is null and finished is true.',
+            'PARAMETERS: runId is run.run_id from enrich_domains (also in the Apify console URL). status is READY | RUNNING | SUCCEEDED | FAILED | ABORTED | TIMED-OUT; finished=true for the last four, after which total no longer changes. A FAILED or TIMED-OUT run still returns the rows it wrote. offset/limit page the rows in write order; total counts all rows written so far, so keep calling with nextOffset until it is null and finished is true.',
             'EXAMPLE: {"runId":"a1B2c3D4e5F6g7H8i"} -> {"run":{"status":"SUCCEEDED","finished":true},"count":1,"total":1,"items":[{"type":"domain","domain":"apify.com",...}]}',
         ].join('\n'),
         inputSchema: {
@@ -130,7 +130,7 @@ server.registerTool(
         if (!token) return TOKEN_MISSING();
         try {
             const { info, items, total } = await readRun(ACTOR_ID, runId, token, offset, limit);
-            const next = offset + items.length < total ? offset + items.length : null;
+            const next = items.length === limit || offset + items.length < total ? offset + items.length : null; // a full page may have more
             return ok({ run: info, items, count: items.length, total, nextOffset: next });
         } catch (e) {
             if (e instanceof RunLookupError) return fail(e.code, e.message + (e.retryable ? ' (retryable)' : ''));
