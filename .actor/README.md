@@ -164,6 +164,7 @@ Returns only information that companies publish on their own websites. You are r
 
 ## Links
 
+- Guide: [How to find a company's contact email, phone and social profiles from its domain](https://fairquery.github.io/posts/find-company-contact-email-phone-socials-from-domain/)
 - Apify Store: https://apify.com/fairquery/website-contact-company-enricher
 - GitHub: https://github.com/fairquery/website-contact-company-enricher
 - Contact: fairquery@proton.me
