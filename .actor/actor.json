@@ -1,0 +1,29 @@
+{
+    "$schema": "https://apify.com/schemas/v1/actor.ide.json",
+    "actorSpecification": 1,
+    "name": "website-contact-company-enricher",
+    "title": "Website Contact & Company Enricher",
+    "description": "Domain in, one row out: public business emails (role addresses, MX and disposable-checked), phones, social profiles, company name and address from the homepage and contact/about/imprint pages. Respects robots.txt, polite crawl, no browser.",
+    "version": "0.1",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "ts-empty",
+        "generatedBy": "Fairquery"
+    },
+    "defaultRunOptions": {
+        "build": "latest",
+        "memoryMbytes": 256,
+        "timeoutSecs": 900
+    },
+    "minMemoryMbytes": 256,
+    "maxMemoryMbytes": 512,
+    "input": "./input_schema.json",
+    "output": "./output_schema.json",
+    "storages": {
+        "dataset": "./dataset_schema.json",
+        "keyValueStore": "./key_value_store_schema.json"
+    },
+    "dockerfile": "./Dockerfile",
+    "dockerContextDir": "..",
+    "readme": "./README.md"
+}

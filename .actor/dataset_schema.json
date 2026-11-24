@@ -1,0 +1,164 @@
+{
+    "$schema": "https://apify.com/schemas/v1/dataset.ide.json",
+    "actorSpecification": 1,
+    "fields": {
+        "type": "object",
+        "properties": {
+            "schema_version": {
+                "type": "string"
+            },
+            "type": {
+                "type": "string",
+                "enum": [
+                    "domain",
+                    "error"
+                ]
+            },
+            "input": {
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "domain": {
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "final_url": {
+                "type": "string"
+            },
+            "enriched_at": {
+                "type": "string"
+            },
+            "company_name": {
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "description": {
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "emails": {
+                "type": "array",
+                "items": {
+                    "type": "object"
+                }
+            },
+            "primary_email": {
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "phones": {
+                "type": "array",
+                "items": {
+                    "type": "object"
+                }
+            },
+            "social_links": {
+                "type": "object"
+            },
+            "address": {
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "addresses": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            },
+            "mail_domain": {
+                "type": [
+                    "object",
+                    "null"
+                ]
+            },
+            "pages_crawled": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            },
+            "pages_blocked_by_robots": {
+                "type": "integer"
+            },
+            "robots_txt": {
+                "type": "string"
+            },
+            "email_scope": {
+                "type": "string"
+            },
+            "code": {
+                "type": "string"
+            },
+            "message": {
+                "type": "string"
+            },
+            "retryable": {
+                "type": "boolean"
+            },
+            "partial": {
+                "type": "boolean",
+                "description": "true if the per-domain time limit cut the crawl short"
+            }
+        }
+    },
+    "views": {
+        "overview": {
+            "title": "Overview",
+            "transformation": {
+                "fields": [
+                    "domain",
+                    "company_name",
+                    "primary_email",
+                    "phones",
+                    "social_links",
+                    "address",
+                    "code",
+                    "message"
+                ]
+            },
+            "display": {
+                "component": "table",
+                "properties": {
+                    "domain": {
+                        "label": "Domain"
+                    },
+                    "company_name": {
+                        "label": "Company"
+                    },
+                    "primary_email": {
+                        "label": "Primary email"
+                    },
+                    "phones": {
+                        "label": "Phones",
+                        "format": "array"
+                    },
+                    "social_links": {
+                        "label": "Social",
+                        "format": "object"
+                    },
+                    "address": {
+                        "label": "Address"
+                    },
+                    "code": {
+                        "label": "Error code"
+                    },
+                    "message": {
+                        "label": "Error"
+                    }
+                }
+            }
+        }
+    }
+}
